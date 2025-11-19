@@ -1,0 +1,77 @@
+import pandas as pd
+import csv
+
+# --- INPUT FILES ---
+# Paths to the two source files: file1 contains the reference IDs,
+# file2 contains the full rows we want to filter/copy.
+file1 = "Never.xlsx"
+file2 = "users.xlsx"
+
+# --- SHEETS (optional) ---
+# If the inputs are Excel workbooks, these specify which sheet to read.
+sheet1 = "Sheet1"
+sheet2 = "Sheet1"
+
+# --- COLUMNS TO COMPARE ---
+# Names of the columns to match between the two files.
+# col1 is the column in file1, col2 is the column in file2.
+col1 = "customers_login"
+col2 = "customers_login"
+
+# --- LOAD THE DATA ---
+# Helper to detect CSV delimiter (only used for non-Excel files).
+def detect_sep(path):
+    try:
+        # Read a sample of the file and ask csv.Sniffer to guess the delimiter.
+        with open(path, "r", encoding="utf-8", newline="") as f:
+            sample = f.read(4096)
+            return csv.Sniffer().sniff(sample).delimiter
+    except Exception:
+        # Fallback if sniffing fails.
+        return ","
+
+def read_table(path, sheet=None):
+    """Read CSV or Excel based on file extension; normalize column names.
+
+    - For Excel files (.xls/.xlsx/.xlsm) use pandas.read_excel with openpyxl engine.
+    - For other files treat as CSV and try to detect the separator.
+    - After reading, strip BOM and whitespace from column names for reliable matching.
+    """
+    lower = path.lower()
+    if lower.endswith(('.xls', '.xlsx', '.xlsm')):
+        # Read Excel sheet
+        df = pd.read_excel(path, sheet_name=sheet, engine="openpyxl")
+    else:
+        # Read CSV with detected separator
+        sep = detect_sep(path)
+        df = pd.read_csv(path, sep=sep, engine="python", encoding="utf-8", skipinitialspace=True)
+    # Normalize column names: remove BOM and trim whitespace
+    df.columns = df.columns.astype(str).str.replace("\ufeff", "").str.strip()
+    return df
+
+# Read both input tables (auto-handles Excel vs CSV)
+df1 = read_table(file1, sheet=sheet1)
+df2 = read_table(file2, sheet=sheet2)
+
+# quick debug output to confirm column names and sample rows
+print(f"{file1} columns:", list(df1.columns))
+print(df1.head(3).to_string(index=False))
+print(f"{file2} columns:", list(df2.columns))
+print(df2.head(3).to_string(index=False))
+
+# basic column checks: ensure the expected columns exist before matching
+if col1 not in df1.columns:
+    raise KeyError(f"Column '{col1}' not found in {file1}. Columns: {list(df1.columns)[:10]}")
+if col2 not in df2.columns:
+    raise KeyError(f"Column '{col2}' not found in {file2}. Columns: {list(df2.columns)[:10]}")
+
+# --- FIND VALUES IN FILE2 WHERE FILE1 MATCHES ---
+# Select rows from df2 where the col2 value exists in df1[col1].
+matches = df2[df2[col2].isin(df1[col1])]
+
+# --- SAVE TO NEW EXCEL FILE ---
+# Write the matched rows to an output Excel workbook.
+output_file = "matched_rows_from_file2.xlsx"
+matches.to_excel(output_file, index=False)
+
+print(f"Done! Matching rows from File2 saved to: {output_file}")
