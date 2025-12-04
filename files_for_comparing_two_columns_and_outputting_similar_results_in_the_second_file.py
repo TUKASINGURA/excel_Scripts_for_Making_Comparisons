@@ -4,8 +4,8 @@ import csv
 # --- INPUT FILES ---
 # Paths to the two source files: file1 contains the reference IDs,
 # file2 contains the full rows we want to filter/copy.
-file1 = "Never.xlsx"
-file2 = "users.xlsx"
+file1 = "zulaika.xlsx"
+file2 = "all.csv"
 
 # --- SHEETS (optional) ---
 # If the inputs are Excel workbooks, these specify which sheet to read.
@@ -15,8 +15,8 @@ sheet2 = "Sheet1"
 # --- COLUMNS TO COMPARE ---
 # Names of the columns to match between the two files.
 # col1 is the column in file1, col2 is the column in file2.
-col1 = "customers_login"
-col2 = "customers_login"
+col1 = "customers_id"
+col2 = "customers_id"
 
 # --- LOAD THE DATA ---
 # Helper to detect CSV delimiter (only used for non-Excel files).

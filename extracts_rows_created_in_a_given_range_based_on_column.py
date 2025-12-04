@@ -4,19 +4,19 @@ import re
 from datetime import datetime
 
 # --- INPUT FILE ---
-file_path = "users.csv"
+file_path = "August.csv"
 sheet_name = "Sheet1"
 
 # --- DATE COLUMN NAME ---
-date_column = "Created"    # <-- change to your actual column name
+date_column = "customers_created"    # <-- change to your actual column name
 
 # --- DATE RANGE (CHANGE AS NEEDED) ---
 #the Date format is DD/MM/YYYY 
 #example1 :  start_date_str = "1/11/2025" , end_date_str   = "18/11/2025" 
 #example2 :  start_date_str = "17/11/2025 2:39:44" , end_date_str   = "18/11/2025 14:20:00"
 
-start_date_str = "28/8/2025 21:00:00"
-end_date_str   = "28/8/2025 23:59:00"
+start_date_str = "1/8/2025 00:00:00"
+end_date_str   = "31/8/2025 23:59:00"
 
 #Note any data that is found to be at or after the end date/time will be excluded.
 
