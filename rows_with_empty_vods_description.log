@@ -1,0 +1,7 @@
+Input file: VOD_descriptions.xlsx
+Sheet: Sheet1
+Target column: vods_description
+Total rows: 17104
+Rows with empty 'vods_description': 4292
+Saved Excel: rows_with_empty_vods_description.xlsx
+Saved CSV: rows_with_empty_vods_description.csv

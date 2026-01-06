@@ -10,9 +10,9 @@ sheet = "Sheet1"
 compare_mode = "single_column"   # Set to "single_column" to focus on one column
 
 # --- SINGLE-COLUMN MODE ---
-single_column = "subscriptions_customers_id"            # Column to look for repeated / similar values
+single_column = "subscriptions_packages_id"            # Column to look for repeated / similar values
 single_min_count = 1                # Minimum occurrences to consider "similar" (set to 1 to include all)
-single_filter_value = "20"     # Only consider values containing this substring
+single_filter_value = "18"     # Only consider values containing this substring
 single_filter_regex = False         # Treat single_filter_value as regex if True
 
 # --- OPTIONAL: output only these columns (None => keep full matched rows) ---
