@@ -10,8 +10,8 @@ import csv
 # --- INPUT FILES ---
 # file1: reference file (rows here are treated as "existing")
 # file2: file to check (rows here will be classified as common or distinct)
-file1 = "Assets.xlsx"
-file2 = "users.xlsx"
+file1 = "Actors.csv"
+file2 = "title.csv"
 
 # --- SHEETS (optional, used only for Excel files) ---
 # If your inputs are Excel workbooks, set these to the sheet names to read.
@@ -92,7 +92,30 @@ else:
 # --- SAVE ONLY TWO FILES ---
 # Write exactly two Excel files: one with the common rows and one with the distinct rows.
 common_out = "rows_common_on_shared_columns.xlsx"
-distinct_out = "rows_distinct_on_shared_columns.xlsx"
+distinct_out = "rows_distinct_on_shared_columns_with_diffcols.xlsx"
+
+# For each distinct row, determine which of the shared columns contain values
+# that do not appear in the corresponding column of file1. This helps identify
+# which columns make the row 'distinct'. The result is saved as a new column
+# `distinct_columns` and the full distinct rows are written to a single output file.
+if not distinct_rows.empty and common_cols:
+    # Build sets of normalized values present in file1 for each shared column
+    value_sets = {}
+    for col in common_cols:
+        s = df1[col].fillna("").astype(str).str.strip().str.lower()
+        value_sets[col] = set(s.unique())
+
+    def _distinct_columns_for_row(row):
+        cols = []
+        for col in common_cols:
+            val = row.get(col, "")
+            vnorm = ("" if pd.isna(val) else str(val)).strip().lower()
+            if vnorm not in value_sets.get(col, set()):
+                cols.append(col)
+        return ",".join(cols)
+
+    distinct_rows = distinct_rows.copy()
+    distinct_rows["distinct_columns"] = distinct_rows.apply(_distinct_columns_for_row, axis=1)
 
 common_rows.to_excel(common_out, index=False)
 distinct_rows.to_excel(distinct_out, index=False)
