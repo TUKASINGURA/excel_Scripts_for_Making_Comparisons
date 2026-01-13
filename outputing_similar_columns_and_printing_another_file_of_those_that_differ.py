@@ -3,14 +3,14 @@ import csv
 import re
 
 # --- INPUT FILE (single file mode) ---
-input_file = "Cities and View Sessions.csv"
+input_file = "non_matched.xlsx"
 sheet = "Sheet1"
 
 # --- COMPARISON MODE ---
 compare_mode = "single_column"   # Set to "single_column" to focus on one column
 
 # --- SINGLE-COLUMN MODE ---
-single_column = "country"            # Column to look for repeated / similar values
+single_column = "Country"            # Column to look for repeated / similar values
 single_min_count = 1                # Minimum occurrences to consider "similar" (set to 1 to include all)
 single_filter_value = "UG"     # Only consider values containing this substring
 single_filter_regex = False         # Treat single_filter_value as regex if True

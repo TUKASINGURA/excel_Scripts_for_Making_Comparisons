@@ -10,9 +10,21 @@ import csv
 # --- INPUT FILES ---
 # file1: reference file (rows here are treated as "existing")
 # file2: file to check (rows here will be classified as common or distinct)
-file1 = "Actors.csv"
-file2 = "title.csv"
+file1 = "diaspora.xlsx"
+file2 = "missing.csv"
 
+# --- USER: specify which columns should be used for comparison ---
+# - If both lists are None, the script falls back to comparing on shared columns (existing behavior).
+# - If you provide one or more columns for each file, the script will perform membership
+#   comparison: for single columns it checks if each value in file2[col2] exists in file1[col1].
+#   For multiple columns, it compares tuples of the provided columns (pairwise order matters).
+# Examples:
+# compare_cols_file1 = ['ID']
+# compare_cols_file2 = ['ExternalID']
+# compare_cols_file1 = ['FirstName', 'LastName']
+# compare_cols_file2 = ['GivenName', 'Surname']
+compare_cols_file1 = ["Customer_login"]
+compare_cols_file2 = ["Customer_login"]
 # --- SHEETS (optional, used only for Excel files) ---
 # If your inputs are Excel workbooks, set these to the sheet names to read.
 sheet1 = "Sheet1"
@@ -59,35 +71,65 @@ df2 = read_table(file2, sheet=sheet2)
 # Determine which columns exist in both files; comparison uses only these shared columns.
 common_cols = list(df1.columns.intersection(df2.columns))
 
-if common_cols:
-    def row_sig(df, cols):
-        """
-        Build a stable string signature for each row using the specified columns.
-        - fillna("") avoids NaN vs empty-string mismatches
-        - astype(str) ensures consistent type
-        - strip whitespace from each value to avoid trivial differences
-        - join with a separator unlikely to appear in actual data ("||")
-        """
-        return (
-            df[cols]
-            .fillna("")
-            .astype(str)
-            .apply(lambda r: "||".join(v.strip() for v in r.values), axis=1)
-        )
+def row_sig(df, cols):
+    """
+    Build a stable string signature for each row using the specified columns.
+    """
+    return (
+        df[cols]
+        .fillna("")
+        .astype(str)
+        .apply(lambda r: "||".join(v.strip() for v in r.values), axis=1)
+    )
 
-    # create signature series for both dataframes using only shared columns
-    sig1 = row_sig(df1, common_cols)
-    sig2 = row_sig(df2, common_cols)
 
-    # Rows in df2 whose signature appears in df1 are "common"
-    common_rows = df2[sig2.isin(sig1)]
+# If user provided explicit comparison columns for both files, use membership logic.
+# Otherwise fall back to the existing shared-column row-signature comparison.
+if compare_cols_file1 and compare_cols_file2:
+    # normalize provided column names (strip spaces)
+    c1 = [c.strip() for c in compare_cols_file1]
+    c2 = [c.strip() for c in compare_cols_file2]
 
-    # Rows in df2 whose signature does not appear in df1 are "distinct"
-    distinct_rows = df2[~sig2.isin(sig1)]
+    if len(c1) != len(c2):
+        raise ValueError("compare_cols_file1 and compare_cols_file2 must have the same length")
+
+    # create set of keys from file1 for membership testing
+    if len(c1) == 1:
+        col1 = c1[0]
+        keys1 = set(df1[col1].fillna("").astype(str).str.strip().str.lower())
+
+        def is_in_file1(row):
+            v = row.get(c2[0], "")
+            return ("" if pd.isna(v) else str(v)).strip().lower() in keys1
+
+        # common rows are those where value is present in file1 set
+        common_rows = df2[df2.apply(is_in_file1, axis=1)]
+        distinct_rows = df2[~df2.apply(is_in_file1, axis=1)]
+    else:
+        # multiple columns: compare tuples (pairwise)
+        def make_key_from_df(df, cols):
+            return list(
+                df[cols].fillna("").astype(str).apply(lambda r: tuple(v.strip().lower() for v in r.values), axis=1)
+            )
+
+        keys1 = set(make_key_from_df(df1, c1))
+        keys2 = make_key_from_df(df2, c2)
+
+        mask_in = [k in keys1 for k in keys2]
+        common_rows = df2[mask_in]
+        distinct_rows = df2[[not m for m in mask_in]]
+
 else:
-    # If there are no shared columns, nothing can be considered "common".
-    common_rows = df2.head(0).copy()
-    distinct_rows = df2.copy()
+    # fallback: use shared columns signature method (original behavior)
+    if common_cols:
+        sig1 = row_sig(df1, common_cols)
+        sig2 = row_sig(df2, common_cols)
+
+        common_rows = df2[sig2.isin(sig1)]
+        distinct_rows = df2[~sig2.isin(sig1)]
+    else:
+        common_rows = df2.head(0).copy()
+        distinct_rows = df2.copy()
 
 # --- SAVE ONLY TWO FILES ---
 # Write exactly two Excel files: one with the common rows and one with the distinct rows.
