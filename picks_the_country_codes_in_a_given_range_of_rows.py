@@ -4,7 +4,7 @@ import re
 from collections import defaultdict
 
 # --- INPUT FILE ---
-input_file = "countries.xlsx"
+input_file = "filtered_by_date_original_text.xlsx"
 sheet = "Sheet1"
 
 # --- OUTPUT FILE ---

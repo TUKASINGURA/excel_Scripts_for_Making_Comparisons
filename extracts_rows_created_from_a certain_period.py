@@ -8,19 +8,16 @@ file_path = "customer_data_organized.xlsx"
 sheet_name = "Sheet1"
 
 # --- DATE COLUMN NAME ---
-date_column = "latest_subscription_started"    # <-- change to your actual column name
+date_column = "devices_used"    # <-- change to your actual column name
 
-# --- DATE RANGE (CHANGE AS NEEDED) ---
-# For ISO format (YYYY-MM-DD HH:MM:SS.NNNNNN) use this format
-#example1 :  start_date_str = "2026-01-01 00:00:00" , end_date_str   = "2026-01-31 23:59:59" 
-#example2 :  start_date_str = "2025-12-01 00:00:00" , end_date_str   = "2025-12-31 23:59:59"
-#start_date_str = "2026-01-01 00:00:00.000000"
-#end_date_str   = "2026-01-31 23:59:59.000000"
+# --- START DATE FILTER (CHANGE AS NEEDED) ---
+#the Date format is DD/MM/YYYY 
+#example1 :  start_date_str = "1/11/2025"
+#example2 :  start_date_str = "17/11/2025 2:39:44"
 
 start_date_str = "2026-01-19 00:00:00.000000"
-end_date_str   = "2026-01-19 23:59:59.000000"
 
-#Note any data that is found to be at or after the end date/time will be excluded.
+#Note any data that is found to be at or after the start date/time will be included.
 
 # --- HELPER: detect delimiter for CSV ---
 def detect_sep(path):
@@ -74,8 +71,8 @@ def parse_date_flexible(series):
         "%d/%m/%Y %H:%M:%S",
         "%d/%m/%Y %H:%M",
         "%d/%m/%Y",
+        "%Y-%m-%d %H:%M:%S.%f",  # ISO format with microseconds (e.g., 2026-01-07 21:02:48.000000)
         "%Y-%m-%d %H:%M:%S",
-        "%Y-%m-%d %H:%M:%S.%f", # ISO format with microseconds (e.g., 2026-01-07 21:02:48.000000)
         "%Y-%m-%d",
         "%m/%d/%Y %H:%M:%S",
         "%m/%d/%Y",
@@ -102,13 +99,11 @@ def parse_date_flexible(series):
 
 parsed_dates = parse_date_flexible(df_raw[date_column])
 
-# Convert the input strings into datetime objects for the range
-# Use format string for ISO dates to avoid dayfirst warning
-start_date = pd.to_datetime(start_date_str, format="%Y-%m-%d %H:%M:%S.%f")
-end_date = pd.to_datetime(end_date_str, format="%Y-%m-%d %H:%M:%S.%f")
+# Convert the input string into datetime object for the start date
+start_date = pd.to_datetime(start_date_str, dayfirst=True)
 
-# --- FILTER BETWEEN START & END USING PARSED DATES ---
-mask = (parsed_dates >= start_date) & (parsed_dates <= end_date)
+# --- FILTER FROM START DATE ONWARDS USING PARSED DATES ---
+mask = (parsed_dates >= start_date)
 filtered_raw = df_raw.loc[mask].copy()   # preserve original text/format exactly
 
 # --- SAVE RESULT (rows returned the way they are) ---
