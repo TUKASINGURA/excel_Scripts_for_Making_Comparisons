@@ -17,8 +17,8 @@ date_column = "latest_subscription_started"    # <-- change to your actual colum
 #start_date_str = "2026-01-01 00:00:00.000000"
 #end_date_str   = "2026-01-31 23:59:59.000000"
 
-start_date_str = "2026-01-19 00:00:00.000000"
-end_date_str   = "2026-01-19 23:59:59.000000"
+start_date_str = "2026-01-20 00:00:00.000000"
+end_date_str   = "2026-01-20 23:59:59.000000"
 
 #Note any data that is found to be at or after the end date/time will be excluded.
 
