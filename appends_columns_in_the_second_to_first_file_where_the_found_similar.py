@@ -4,14 +4,14 @@ import re
 import difflib
 
 # --- INPUT FILES ---
-file1 = "rows_distinct_on_shared_columns_with_diffcols.xlsx"   # base file
-file2 = "all users.csv"   # file providing extra columns
+file1 = "customer_data_organized.xlsx"   # base file
+file2 = "staff.xlsx"   # file providing extra columns
 
 sheet1 = "Sheet1"
 sheet2 = "Sheet1"
 
 # --- JOIN COLUMN ---
-join_column = "Customer_login"   # column to join on
+join_column = "customer_login"   # column to join on
 
 # --- LOAD FUNCTIONS ---
 def detect_sep(path):

@@ -3,26 +3,21 @@ import csv
 import re
 from datetime import datetime
 
-# --- INPUT FILE ---
+# --- INPUT FILE ---                                                                                                                   
 file_path = "customer_data_organized.xlsx"
 sheet_name = "Sheet1"
 
-# --- DATE COLUMN NAME ---
-date_column = "latest_subscription_started"    # <-- change to your actual column name
+# --- DATE COLUMN NAME --- is the Column where the Date Ranges are located. This should be the same as the column in your input file that contains the start dates.
+date_column = "latest_subscription_started"
 
-# --- DATE RANGE (CHANGE AS NEEDED) ---
-# For ISO format (YYYY-MM-DD HH:MM:SS.NNNNNN) use this format
-#example1 :  start_date_str = "2026-01-01 00:00:00" , end_date_str   = "2026-01-31 23:59:59" 
-#example2 :  start_date_str = "2025-12-01 00:00:00" , end_date_str   = "2025-12-31 23:59:59"
-#start_date_str = "2026-01-01 00:00:00.000000"
-#end_date_str   = "2026-01-31 23:59:59.000000"
-
-start_date_str = "2026-01-20 00:00:00.000000"
-end_date_str   = "2026-01-20 23:59:59.000000"
-
-#Note any data that is found to be at or after the end date/time will be excluded.
+# --- DATE RANGE ---
+# Enhanced slightly to ensure we capture the full days
+# Note: The original date format is "2026-02-04 00:00:00", so you can use ISO8601 parsing
+start_date_str = "2026-02-04 00:00:00"
+end_date_str   = "2026-02-04 23:59:59"
 
 # --- HELPER: detect delimiter for CSV ---
+# This is a simple heuristic that reads a sample of the file and uses csv.Sniffer to guess the delimiter. It defaults to comma if it fails.
 def detect_sep(path):
     try:
         with open(path, "r", encoding="utf-8", newline="") as f:
@@ -31,88 +26,53 @@ def detect_sep(path):
     except Exception:
         return ","
 
-# --- HELPER: read Excel or CSV as raw strings (preserve original cell text) ---
+# --- HELPER: read Excel or CSV as raw strings ---
 def read_table_as_strings(path, sheet=None):
-    """
-    Read the file and return a DataFrame where ALL values are read as strings.
-    This preserves the original text exactly as in the file so the filtered rows
-    can be returned "the way they are".
-    """
     lower = path.lower()
-    if lower.endswith(('.xls', '.xlsx', '.xlsm')):
-        # read Excel with dtype=str to preserve original cell text
+    if lower.endswith(('.xls', '.xlsx', '.xlsm','.xlsb')):
+        # We read as strings to keep the output format identical to the input
         df = pd.read_excel(path, sheet_name=sheet, engine="openpyxl", dtype=str)
     else:
         sep = detect_sep(path)
-        # read CSV with dtype=str and skipinitialspace to preserve exact text
         df = pd.read_csv(path, sep=sep, engine="python", encoding="utf-8", dtype=str, skipinitialspace=True)
-    # normalize header names (remove BOM and surrounding whitespace)
+    
     df.columns = df.columns.astype(str).str.replace("\ufeff", "").str.strip()
     return df
 
-# --- LOAD THE TABLE (raw strings) ---
+# --- LOAD THE TABLE ---
+# Reads the data as raw strings to preserve formatting/whitespace
 df_raw = read_table_as_strings(file_path, sheet=sheet_name)
-print("Columns:", list(df_raw.columns))
 
 if date_column not in df_raw.columns:
     raise KeyError(f"Column '{date_column}' not found. Available columns: {list(df_raw.columns)}")
 
-# --- PARSE DATES FROM THE RAW TEXT (for filtering only) ---
-# Convert the raw date/text values into datetimes for comparison; errors -> NaT
-def parse_date_flexible(series):
-    """
-    Try fast vectorized parse first (dayfirst=True). For any remaining NaT
-    try to extract a date substring and parse with several common formats,
-    then fall back to pd.to_datetime with dayfirst.
-    """
-    parsed = pd.to_datetime(series, errors="coerce", dayfirst=True)
-    if not parsed.isna().any():
-        return parsed
+# --- PARSE DATES (Modern Robust Way) ---
+# 'format="ISO8601"' is the fastest/safest for YYYY-MM-DD formats
+# Removes 'dayfirst=True' because your year comes first
+parsed_dates = pd.to_datetime(df_raw[date_column], errors="coerce", format="ISO8601")
 
-    # formats to attempt when automatic parse fails
-    fmt_candidates = [
-        "%d/%m/%Y %H:%M:%S",
-        "%d/%m/%Y %H:%M",
-        "%d/%m/%Y",
-        "%Y-%m-%d %H:%M:%S",
-        "%Y-%m-%d %H:%M:%S.%f", # ISO format with microseconds (e.g., 2026-01-07 21:02:48.000000)
-        "%Y-%m-%d",
-        "%m/%d/%Y %H:%M:%S",
-        "%m/%d/%Y",
-    ]
+# Convert filter strings to datetime objects
+start_date = pd.to_datetime(start_date_str)
+end_date = pd.to_datetime(end_date_str)
 
-    # try per-value fallback only for those still NaT
-    for idx, raw in series[parsed.isna()].items():
-        s = "" if raw is None else str(raw).strip()
-        # extract a simple date substring if present (e.g. "05/11/2025")
-        m = re.search(r"\d{1,2}[/-]\d{1,2}[/-]\d{4}", s)
-        candidate = m.group(0) if m else s
-        dt = pd.NaT
-        for fmt in fmt_candidates:
-            try:
-                dt = pd.to_datetime(candidate, format=fmt, dayfirst=True, errors="raise")
-                break
-            except Exception:
-                continue
-        if pd.isna(dt):
-            # last resort: let pandas try (handles more weird inputs)
-            dt = pd.to_datetime(candidate, dayfirst=True, errors="coerce")
-        parsed.at[idx] = dt
-    return parsed
-
-parsed_dates = parse_date_flexible(df_raw[date_column])
-
-# Convert the input strings into datetime objects for the range
-# Use format string for ISO dates to avoid dayfirst warning
-start_date = pd.to_datetime(start_date_str, format="%Y-%m-%d %H:%M:%S.%f")
-end_date = pd.to_datetime(end_date_str, format="%Y-%m-%d %H:%M:%S.%f")
-
-# --- FILTER BETWEEN START & END USING PARSED DATES ---
+# --- FILTER ---
 mask = (parsed_dates >= start_date) & (parsed_dates <= end_date)
-filtered_raw = df_raw.loc[mask].copy()   # preserve original text/format exactly
+filtered_raw = df_raw.loc[mask].copy()
 
-# --- SAVE RESULT (rows returned the way they are) ---
+# --- SAVE RESULT ---
 output_file = "filtered_by_date_original_text.xlsx"
-filtered_raw.to_excel(output_file, index=False, engine="openpyxl")
+if not filtered_raw.empty:
+    filtered_raw.to_excel(output_file, index=False, engine="openpyxl")
+    print(f"Success! {len(filtered_raw)} rows found and saved to: {output_file}")
+else:
+    # Create an empty file with headers so the NEXT script doesn't crash
+    df_raw.iloc[0:0].to_excel(output_file, index=False, engine="openpyxl")
+    print("Warning: No rows matched that date range. An empty file with headers was created.")
 
-print(f"Done! {len(filtered_raw)} rows saved to: {output_file}")
+# --- DEBUG SUMMARY ---
+# This summary will help you understand how many rows were processed and if the date parsing worked correctly.
+print(f"Total rows scanned: {len(df_raw)}")
+print(f"Rows with valid dates: {parsed_dates.notna().sum()}")
+if parsed_dates.notna().sum() > 0:
+    print("Earliest date found:", parsed_dates.min())
+    print("Latest date found:", parsed_dates.max())

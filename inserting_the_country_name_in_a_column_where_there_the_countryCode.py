@@ -9,7 +9,7 @@ def get_country_name(code):
         return code  # Return code if not found
 
 # Configuration
-input_file = 'customer_data_organized.xlsx'  # Change this to your actual file
+input_file = 'channels.xlsx'  # Change this to your actual file
 country_code_column = 'country'  # Specify which column contains country codes
 output_file = 'output_with_country_names.xlsx'  # Change this to your desired output file
 
